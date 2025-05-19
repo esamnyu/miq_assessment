@@ -15,6 +15,14 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path Aliases for Shadcn/ui and cleaner imports */
+    "baseUrl": ".", // This tells TypeScript where to start looking for paths
+    "paths": {
+      "@/*": [
+        "./src/*" // Maps "@/" to "./src/"
+      ]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
@@ -23,5 +31,5 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"] // Ensures TypeScript processes files within the 'src' directory
 }
