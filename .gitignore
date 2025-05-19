@@ -1,0 +1,71 @@
+# Environment variables
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+*.egg
+
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+.next/
+out/
+build/
+dist/
+.eslintcache
+
+# TypeScript
+*.tsbuildinfo
+
+# IDE/Editors
+.idea/
+.vscode/
+*.sublime-*
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# AWS
+.aws/
+.amplify/
+amplify/
+
+# Logs
+logs/
+*.log
+
+# Database
+*.sqlite
+*.sqlite3
+*.db
+
+# Docker
+.docker/
+
+# Test fixtures and artifacts
+test-results/
+coverage/
+.nyc_output/
