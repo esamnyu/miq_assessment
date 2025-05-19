@@ -1,42 +1,46 @@
 # Employee Onboarding Portal
 
-A full-stack application for managing employee onboarding with self-service profiles, HR management, and microservice endpoints.
+A full-stack application designed to streamline the employee onboarding process. It provides self-service profile management for new employees, an HR portal for managing employee data (including confidential information), and a microservice for internal data retrieval.
 
-## Features
+## Core Features
 
-- 🔐 User authentication and role-based access control
-- 👤 Employee profile creation and management
-- 💰 Confidential information management (visible only to HR and managers)
-- 🔌 Microservice endpoint for employee data retrieval
-- 🚀 AWS deployment with Supabase database integration
+-   🔐 **User Authentication & Authorization:** Secure login system with JWT-based authentication and role-based access control (Employee, HR, Manager).
+-   👤 **Employee Self-Service:**
+    -   Create and manage personal profiles (contact details, job title, department).
+    -   View personal details on a dedicated landing page.
+-   🛠️ **HR Management Portal:**
+    -   Create new employee accounts and manage roles.
+    * Edit non-confidential information for any employee.
+    * Update confidential salary information (with restricted visibility).
+-   🔌 **Microservice Endpoint:**
+    -   Retrieve comprehensive (non-confidential) employee details by employee ID or name for internal system integration.
+-   🚀 **Cloud Deployment:**
+    -   Application deployed to AWS, utilizing Supabase for the database backend.
 
 ## Tech Stack
 
-### Frontend
-- React 18 with TypeScript
-- TanStack Query for data fetching
-- Zod + react-hook-form for form validation
-- shadcn/ui components (Tailwind CSS-based)
+### Frontend (Planned)
+-   **Framework/Library:** React 18 with TypeScript
+-   **UI Components:** Tailwind CSS & shadcn/ui
+-   **State Management (Server):** TanStack Query (React Query)
+-   **State Management (Client/Global):** Zustand or React Context (to be decided)
+-   **Form Handling & Validation:** React Hook Form & Zod
+-   **Routing:** React Router
+-   **Build Tool:** Vite
 
 ### Backend
-- Python FastAPI
-- SQLModel ORM
-- Supabase PostgreSQL database
-- JWT authentication
+-   **Framework:** Python 3.11 with FastAPI
+-   **Data Validation & Serialization:** Pydantic
+-   **Database:** Supabase (PostgreSQL)
+-   **Database Client:** `supabase-python`
+-   **Authentication:** JWT (via `python-jose`) & Password Hashing (via `passlib[bcrypt]`)
+-   **Configuration:** `pydantic-settings` with `.env` files
+-   **Testing:** Pytest
 
-### Deployment
-- AWS Amplify (frontend)
-- AWS App Runner (backend)
-- GitHub Actions for CI/CD
-
-## Getting Started
-
-See [Setup Guide](docs/SETUP.md) for detailed instructions on setting up the development environment.
-
-## Architecture
-
-See [Architecture Documentation](docs/ARCHITECTURE.md) for details on system design and components.
-
-## Development Workflow
-
-See [PR Process](docs/PR_PROCESS.md) for information on our PR approval workflow and coding standards.
+### Deployment & DevOps
+-   **Cloud Provider:** AWS
+    -   **Frontend Deployment:** AWS Amplify Hosting (planned)
+    -   **Backend Deployment:** AWS App Runner (or Amazon ECS + Fargate) (planned)
+    -   **Container Registry:** Amazon ECR (for backend Docker image)
+-   **CI/CD:** GitHub Actions (for linting, testing, and potentially automated deployments)
+-   **Version Control:** Git & GitHub
