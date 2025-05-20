@@ -159,17 +159,22 @@ async def admin_update_employee_profile(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
 
     try:
-        result = supabase.table("employees").update(update_payload).eq("id", employee_id_to_update).select("*").execute()
-
-        if hasattr(result, 'error') and result.error:
-            logger.error(f"Supabase error: {result.error}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update employee: {result.error.message}")
-        if not result.data:
+        # First perform the update operation without selecting data
+        update_result = supabase.table("employees").update(update_payload).eq("id", employee_id_to_update).execute()
+        
+        if hasattr(update_result, 'error') and update_result.error:
+            logger.error(f"Supabase error: {update_result.error}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update employee: {update_result.error.message}")
+        
+        # Then fetch the updated record in a separate query
+        select_result = supabase.table("employees").select("*").eq("id", employee_id_to_update).execute()
+        
+        if not select_result.data:
             logger.warning(f"Employee not found or update failed for ID: {employee_id_to_update}")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Employee with id {employee_id_to_update} not found or update failed")
 
         logger.info(f"Admin update successful for employee ID {employee_id_to_update}")
-        return result.data[0]
+        return select_result.data[0]
     except Exception as e:
         logger.error(f"Exception during admin update: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating employee: {str(e)}")

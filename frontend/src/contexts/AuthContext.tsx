@@ -1,28 +1,22 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react'; // Corrected: Type-only import for ReactNode
 import { useQueryClient } from '@tanstack/react-query'; // To reset query cache on logout
+import { getMyProfile } from '../services/employeeService'; // Import to fetch user profile
 
 // Define the shape of your user object if you plan to store it
-// For MVP, we might only store the token, but this is for future expansion
 interface User {
-  // Example properties - you'd get these by decoding the JWT or from a /me endpoint
-  username: string; // Ensure this matches what you get from your token or /me endpoint
+  username: string;
   role: string;
-  // Add other relevant user properties like id, email, firstName, lastName if available and needed globally
-  // id?: string;
-  // email?: string;
-  // firstName?: string;
-  // lastName?: string;
+  // Add other relevant user properties as needed
 }
 
 interface AuthContextType {
   token: string | null;
-  user: User | null; // For MVP, this might start as null and be populated later
+  user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean; // To handle initial token check
-  login: (token: string, userData?: User) => void; // userData is optional for MVP
+  login: (token: string, userData?: User) => void;
   logout: () => void;
-  // fetchUser: () => Promise<void>; // Optional: if you want to explicitly fetch user data after login
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,52 +30,84 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Effect to check for a token in localStorage on initial load
   useEffect(() => {
     const storedToken = localStorage.getItem('authToken');
+    const storedUserData = localStorage.getItem('userData');
+    
+    console.log("AuthContext - Initializing with stored data:", { 
+      hasToken: !!storedToken,
+      hasUserData: !!storedUserData 
+    });
+    
     if (storedToken) {
       setToken(storedToken);
-      // For a more robust MVP or production, you would typically:
-      // 1. Decode the JWT here to get basic user info (like username, role, expiry).
-      //    Be cautious about relying solely on JWT for all user data as it can be stale.
-      // 2. Optionally, make a /employees/me request to the backend to validate the token
-      //    and fetch fresh, complete user data. This is generally a good practice.
-
-      // Example of decoding (you'd need a JWT decoding library like 'jwt-decode'):
-      // try {
-      //   const decodedToken: any = jwtDecode(storedToken); // Use a library like jwt-decode
-      //   // Ensure the token isn't expired if the library doesn't do it
-      //   if (decodedToken.exp * 1000 > Date.now()) {
-      //     setUser({ username: decodedToken.sub, role: decodedToken.role || 'employee' /* adapt as per your token structure */ });
-      //   } else {
-      //     localStorage.removeItem('authToken'); // Token expired
-      //     setToken(null);
-      //   }
-      // } catch (error) {
-      //   console.error("Failed to decode token:", error);
-      //   localStorage.removeItem('authToken');
-      //   setToken(null);
-      // }
+      
+      // Try to load user data from localStorage first
+      if (storedUserData) {
+        try {
+          const userData = JSON.parse(storedUserData);
+          console.log("AuthContext - Loaded user data from localStorage:", userData);
+          setUser(userData);
+          setIsLoading(false);
+        } catch (error) {
+          console.error("Failed to parse stored user data:", error);
+          // If parsing fails, we'll fetch the profile below
+        }
+      }
+      
+      // If we don't have stored user data, fetch it from the API
+      if (!storedUserData) {
+        setIsLoading(true);
+        getMyProfile(storedToken)
+          .then(profile => {
+            const userData = {
+              username: profile.username,
+              role: profile.role
+              // Add other fields as needed
+            };
+            console.log("AuthContext - Fetched user profile:", userData);
+            setUser(userData);
+            localStorage.setItem('userData', JSON.stringify(userData));
+          })
+          .catch(error => {
+            console.error("Failed to fetch user profile:", error);
+            // If fetching fails, token might be invalid
+            localStorage.removeItem('authToken');
+            setToken(null);
+          })
+          .finally(() => {
+            setIsLoading(false);
+          });
+      }
+    } else {
+      setIsLoading(false);
     }
-    setIsLoading(false); // Done checking
   }, []);
 
   const login = useCallback((newToken: string, userData?: User) => {
+    console.log("AuthContext - Login called with userData:", userData);
     setToken(newToken);
     localStorage.setItem('authToken', newToken);
+    
     if (userData) {
       setUser(userData);
-      // Optionally store userData in localStorage too, but be mindful of size and sensitivity
-      // localStorage.setItem('userData', JSON.stringify(userData));
+      localStorage.setItem('userData', JSON.stringify(userData));
+      console.log("AuthContext - User data saved to localStorage:", userData);
     } else {
-      // If userData is not provided immediately, you might want to fetch it.
-      // For example, by decoding the token (again, be cautious with stale data)
-      // or by triggering a /me request.
-      // Example with decoding (requires a JWT decoding library):
-      // try {
-      //   const decodedToken: any = jwtDecode(newToken);
-      //   setUser({ username: decodedToken.sub, role: decodedToken.role || 'employee' });
-      // } catch (error) {
-      //   console.error("Failed to decode token on login:", error);
-      //   // Handle appropriately, maybe logout or clear user
-      // }
+      // If userData is not provided, we'll fetch it from the API
+      console.log("AuthContext - No userData provided, will attempt to fetch profile");
+      getMyProfile(newToken)
+        .then(profile => {
+          const userData = {
+            username: profile.username,
+            role: profile.role
+            // Add other fields as needed
+          };
+          console.log("AuthContext - Fetched user profile:", userData);
+          setUser(userData);
+          localStorage.setItem('userData', JSON.stringify(userData));
+        })
+        .catch(error => {
+          console.error("Failed to fetch user profile:", error);
+        });
     }
   }, []);
 
@@ -89,7 +115,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     setToken(null);
     setUser(null);
     localStorage.removeItem('authToken');
-    localStorage.removeItem('userData'); // if you stored user data
+    localStorage.removeItem('userData'); // Clear user data
     queryClient.clear(); // Clear React Query cache
     // Navigation to /login is usually handled by the component calling logout
     // or by ProtectedRoute redirecting.

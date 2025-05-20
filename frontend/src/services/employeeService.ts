@@ -166,11 +166,10 @@ export const getEmployeeByIdOrName = async (
  */
 export const getAllEmployees = async (token: string): Promise<EmployeeResponse[]> => {
   try {
-    // Updated: Use the existing employee API endpoint without specific search criteria
-    // to get all employees. This assumes your backend returns all employees when no
-    // specific search parameters are provided.
+    // Use a wildcard search that will match most/all employees
+    // The empty string for name parameter should match employees with any name
     const response = await axios.get<EmployeeResponse | EmployeeResponse[]>(
-      `${API_BASE_URL}/employees/api/employee`,
+      `${API_BASE_URL}/employees/api/employee?name=%`,
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -186,6 +185,7 @@ export const getAllEmployees = async (token: string): Promise<EmployeeResponse[]
       employees = [response.data];
     }
     
+    console.log("Retrieved employees:", employees.length);
     return employees;
   } catch (error) {
     console.error("Failed to fetch employees:", error);
