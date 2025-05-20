@@ -1,36 +1,23 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Link, useNavigate } from 'react-router-dom'; // Added useNavigate for logout
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { getMyProfile } from '../services/employeeService';
 
-// Shadcn/ui components
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Skeleton } from "@/components/ui/skeleton"; // For loading state
-// You might want a simple layout component later
-// import MainLayout from '@/components/layout/MainLayout';
-
 const ProfilePage: React.FC = () => {
-  const { token, logout, user: authUser } = useAuth(); // Get logout function and potentially basic user info
+  const { token, logout, user: authUser } = useAuth();
   const navigate = useNavigate();
 
   const { data: profile, isLoading, error, isError } = useQuery({
-    queryKey: ['myProfile', token], // Query key includes token to refetch if token changes
+    queryKey: ['myProfile', token],
     queryFn: () => {
       if (!token) {
-        // This should ideally not happen if ProtectedRoute is working,
-        // but as a safeguard / or if token expires mid-session.
         throw new Error("Authentication token not found.");
       }
       return getMyProfile(token);
     },
-    enabled: !!token, // Only run the query if the token exists
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    // If you populate `user` in AuthContext immediately after login with data from /token
-    // or /me, you could use it as initialData:
-    // initialData: authUser ? transformAuthUserToProfile(authUser) : undefined,
+    enabled: !!token,
+    staleTime: 5 * 60 * 1000,
   });
 
   const handleLogout = () => {
@@ -41,30 +28,24 @@ const ProfilePage: React.FC = () => {
   if (isLoading) {
     return (
       <div className="container mx-auto p-4 md:p-8 max-w-2xl">
-        <Card>
-          <CardHeader>
-            <Skeleton className="h-8 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-1/4" />
-              <Skeleton className="h-6 w-3/4" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-1/4" />
-              <Skeleton className="h-6 w-3/4" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-1/4" />
-              <Skeleton className="h-6 w-3/4" />
-            </div>
-            <Skeleton className="h-10 w-24 mt-4" />
-          </CardContent>
-          <CardFooter>
-            <Skeleton className="h-10 w-24" />
-          </CardFooter>
-        </Card>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+          <div className="mb-4">
+            <div className="h-8 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+            <div className="h-4 w-1/2 bg-gray-200 dark:bg-gray-700 rounded mt-2 animate-pulse"></div>
+          </div>
+          <div className="space-y-4">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="space-y-2">
+                <div className="h-4 w-1/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+                <div className="h-6 w-3/4 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+              </div>
+            ))}
+            <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded mt-4 animate-pulse"></div>
+          </div>
+          <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="h-10 w-24 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>
+          </div>
+        </div>
       </div>
     );
   }
@@ -72,26 +53,41 @@ const ProfilePage: React.FC = () => {
   if (isError) {
     return (
       <div className="container mx-auto p-4 md:p-8 max-w-2xl">
-        <Alert variant="destructive">
-          <AlertTitle>Error</AlertTitle>
-          <AlertDescription>
+        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 text-red-700 dark:text-red-400 p-4 rounded-lg">
+          <h3 className="font-bold">Error</h3>
+          <p>
             Could not fetch profile data. {(error as any)?.data?.detail || (error as Error)?.message || "Please try again later."}
-          </AlertDescription>
-        </Alert>
-        <Button onClick={() => window.location.reload()} className="mt-4">Try Again</Button>
-         <Button onClick={handleLogout} variant="outline" className="mt-4 ml-2">Logout</Button>
+          </p>
+        </div>
+        <div className="mt-4 flex flex-wrap gap-2">
+          <button 
+            onClick={() => window.location.reload()} 
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded"
+          >
+            Try Again
+          </button>
+          <button 
+            onClick={handleLogout} 
+            className="border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 px-4 py-2 rounded"
+          >
+            Logout
+          </button>
+        </div>
       </div>
     );
   }
 
   if (!profile) {
-    // This case should ideally be covered by isLoading or isError
-    // but can be a fallback if data is unexpectedly null post-fetch.
     return (
-        <div className="container mx-auto p-4 md:p-8 max-w-2xl text-center">
-            <p>No profile data available.</p>
-            <Button onClick={handleLogout} variant="outline" className="mt-4">Logout</Button>
-        </div>
+      <div className="container mx-auto p-4 md:p-8 max-w-2xl text-center">
+        <p className="text-gray-700 dark:text-gray-300">No profile data available.</p>
+        <button 
+          onClick={handleLogout} 
+          className="mt-4 border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 px-4 py-2 rounded"
+        >
+          Logout
+        </button>
+      </div>
     );
   }
 
@@ -104,16 +100,18 @@ const ProfilePage: React.FC = () => {
   );
 
   return (
-    // Consider wrapping with a <MainLayout> if you create one
     <div className="container mx-auto p-4 md:p-8 max-w-2xl">
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-2xl md:text-3xl">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow overflow-hidden">
+        <div className="p-6 border-b border-gray-200 dark:border-gray-700">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-gray-100">
             Welcome, {profile.first_name} {profile.last_name}!
-          </CardTitle>
-          <CardDescription>This is your personal onboarding profile.</CardDescription>
-        </CardHeader>
-        <CardContent>
+          </h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            This is your personal onboarding profile.
+          </p>
+        </div>
+        
+        <div className="p-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
             <ProfileField label="First Name" value={profile.first_name} />
             <ProfileField label="Last Name" value={profile.last_name} />
@@ -122,20 +120,24 @@ const ProfilePage: React.FC = () => {
             <ProfileField label="Job Title" value={profile.job_title} />
             <ProfileField label="Department" value={profile.department} />
             <ProfileField label="Role" value={profile.role} />
-            {/* You can add username here if it's part of EmployeeResponse and you want to display it */}
-            {/* <ProfileField label="Username" value={profile.username} /> */}
             <ProfileField label="Member Since" value={new Date(profile.created_at).toLocaleDateString()} />
           </div>
-        </CardContent>
-        <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-2 pt-6">
+        </div>
+        
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-2">
           <Link to="/profile/edit">
-            <Button>Edit Profile</Button>
+            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full sm:w-auto">
+              Edit Profile
+            </button>
           </Link>
-          <Button onClick={handleLogout} variant="outline">
+          <button 
+            onClick={handleLogout} 
+            className="border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded w-full sm:w-auto mt-2 sm:mt-0"
+          >
             Logout
-          </Button>
-        </CardFooter>
-      </Card>
+          </button>
+        </div>
+      </div>
     </div>
   );
 };

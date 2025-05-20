@@ -1,16 +1,8 @@
 import React from 'react';
-// Updated import from react-hook-form
-import { useForm, ControllerRenderProps } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
-
-// Shadcn/ui components
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
-import { useToast } from "@/components/ui/use-toast";
 
 // Your custom imports
 import { registerSchema } from '../schemas/employeeSchemas';
@@ -19,7 +11,6 @@ import { registerUser } from '../services/employeeService';
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
-  const { toast } = useToast();
 
   const form = useForm<RegisterFormInputs>({
     resolver: zodResolver(registerSchema),
@@ -36,14 +27,10 @@ const RegisterPage: React.FC = () => {
     },
   });
 
-  // ... (mutation and onSubmit logic remains the same)
   const registrationMutation = useMutation({
     mutationFn: registerUser,
     onSuccess: (data) => {
-      toast({
-        title: "Registration Successful!",
-        description: `Welcome, ${data.first_name}! Please log in.`,
-      });
+      alert(`Registration Successful! Welcome, ${data.first_name}! Please log in.`);
       navigate('/login');
     },
     onError: (error: any) => {
@@ -57,11 +44,7 @@ const RegisterPage: React.FC = () => {
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      toast({
-        variant: "destructive",
-        title: "Registration Failed",
-        description: errorMessage,
-      });
+      alert(`Registration Failed: ${errorMessage}`);
       console.error("Registration error:", error);
     },
   });
@@ -71,152 +54,160 @@ const RegisterPage: React.FC = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-100 dark:bg-slate-900 p-4">
-      <Card className="w-full max-w-lg">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold">Create Your Account</CardTitle>
-          <CardDescription>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+      <div className="w-full max-w-lg bg-white p-6 rounded-lg shadow">
+        <div className="text-center mb-6">
+          <h1 className="text-2xl font-bold">Create Your Account</h1>
+          <p className="text-gray-600">
             Fill in the details below to get started.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 md:space-y-6">
-              {/* Example for firstName */}
-              <FormField
-                control={form.control}
-                name="firstName"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'firstName'> }) => (
-                  <FormItem>
-                    <FormLabel>First Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="John" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {/* Example for lastName */}
-              <FormField
-                control={form.control}
-                name="lastName"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'lastName'> }) => (
-                  <FormItem>
-                    <FormLabel>Last Name</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Doe" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {/* Apply similar typing to other FormField render props */}
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'email'> }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="john.doe@example.com" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'phone'> }) => (
-                  <FormItem>
-                    <FormLabel>Phone (Optional)</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+1234567890" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="jobTitle"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'jobTitle'> }) => (
-                  <FormItem>
-                    <FormLabel>Job Title</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Software Engineer" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="department"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'department'> }) => (
-                  <FormItem>
-                    <FormLabel>Department</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Technology" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'username'> }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input placeholder="johndoe" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'password'> }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="confirmPassword"
-                render={({ field }: { field: ControllerRenderProps<RegisterFormInputs, 'confirmPassword'> }) => (
-                  <FormItem>
-                    <FormLabel>Confirm Password</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="••••••••" disabled={registrationMutation.isPending} {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <Button type="submit" className="w-full" disabled={registrationMutation.isPending}>
-                {registrationMutation.isPending ? 'Registering...' : 'Create Account'}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="flex flex-col items-center space-y-2">
-          <p className="text-sm text-muted-foreground">
+          </p>
+        </div>
+        
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700">First Name</label>
+            <input
+              type="text"
+              placeholder="John"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('firstName')}
+            />
+            {form.formState.errors.firstName && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.firstName.message}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Last Name</label>
+            <input
+              type="text"
+              placeholder="Doe"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('lastName')}
+            />
+            {form.formState.errors.lastName && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.lastName.message}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Email</label>
+            <input
+              type="email"
+              placeholder="john.doe@example.com"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('email')}
+            />
+            {form.formState.errors.email && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.email.message}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Phone (Optional)</label>
+            <input
+              type="tel"
+              placeholder="+1234567890"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('phone')}
+            />
+            {form.formState.errors.phone && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.phone.message}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Job Title</label>
+            <input
+              type="text"
+              placeholder="Software Engineer"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('jobTitle')}
+            />
+            {form.formState.errors.jobTitle && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.jobTitle.message}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Department</label>
+            <input
+              type="text"
+              placeholder="Technology"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('department')}
+            />
+            {form.formState.errors.department && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.department.message}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Username</label>
+            <input
+              type="text"
+              placeholder="johndoe"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('username')}
+            />
+            {form.formState.errors.username && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.username.message}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('password')}
+            />
+            {form.formState.errors.password && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.password.message}</p>
+            )}
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700">Confirm Password</label>
+            <input
+              type="password"
+              placeholder="••••••••"
+              className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-md"
+              disabled={registrationMutation.isPending}
+              {...form.register('confirmPassword')}
+            />
+            {form.formState.errors.confirmPassword && (
+              <p className="text-red-500 text-xs mt-1">{form.formState.errors.confirmPassword.message}</p>
+            )}
+          </div>
+          
+          <button
+            type="submit"
+            className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={registrationMutation.isPending}
+          >
+            {registrationMutation.isPending ? 'Registering...' : 'Create Account'}
+          </button>
+        </form>
+        
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-600">
             Already have an account?{' '}
-            <Link to="/login" className="font-medium text-primary hover:underline">
+            <Link to="/login" className="font-medium text-blue-600 hover:underline">
               Login here
             </Link>
           </p>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
