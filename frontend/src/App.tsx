@@ -12,6 +12,7 @@ import NotFoundPage from './pages/NotFoundPage';
 // Import HR page components
 import HRDashboardPage from './pages/HRDashboardPage';
 import HREmployeeEditPage from './pages/HREmployeeEditPage';
+import HRSalaryManagePage from './pages/HRSalaryManagePage';
 // Import your route protection components
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import HRProtectedRoute from './components/auth/HRProtectedRoute';
@@ -28,11 +29,13 @@ function App() {
         <BrowserRouter>
           <Routes>
             {/* Auth pages with AuthLayout */}
-            <Route element={<div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 p-4">
-              <div className="w-full max-w-md">
-                <Outlet />
+            <Route element={
+              <div className="flex items-center justify-center min-h-screen bg-slate-50 dark:bg-slate-900 p-4">
+                <div className="w-full max-w-md">
+                  <Outlet />
+                </div>
               </div>
-            </div>}>
+            }>
               <Route path="/login" element={<LoginPage />} />
               <Route path="/register" element={<RegisterPage />} />
             </Route>
@@ -64,7 +67,7 @@ function App() {
                 <Route element={<HRProtectedRoute />}>
                   <Route path="/hr/dashboard" element={<HRDashboardPage />} />
                   <Route path="/hr/employees/:employeeId/edit" element={<HREmployeeEditPage />} />
-                  <Route path="/hr/employees/:employeeId/salary" element={<HREmployeeEditPage />} />
+                  <Route path="/hr/employees/:employeeId/salary" element={<HRSalaryManagePage />} />
                 </Route>
               </Route>
             </Route>
