@@ -5,14 +5,15 @@
     "lib": ["ES2023"],
     "module": "ESNext",
     "skipLibCheck": true,
-
+    /* Add composite for project references */
+    "composite": true,
     /* Bundler mode */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "moduleDetection": "force",
-    "noEmit": true,
-
+    /* Remove noEmit since it's incompatible with composite projects */
+    // "noEmit": true,  <-- Remove this line
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
