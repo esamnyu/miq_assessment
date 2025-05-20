@@ -214,15 +214,36 @@ async def update_salary(
 @router.get("/api/employee", response_model=Union[EmployeeResponse, List[EmployeeResponse]])
 async def get_employee_by_id_or_name(
     employee_id: Optional[str] = None,
-    name: Optional[str] = None
+    name: Optional[str] = None,
+    # Add an optional token for service-to-service auth
+    service_token: Optional[str] = Header(None, alias="X-Service-API-Key")
 ):
+    """
+    Microservice endpoint to retrieve employee details by ID or name.
+    This endpoint serves as an internal API for other services to access employee data.
+    
+    Parameters:
+    - employee_id: The unique ID of the employee to retrieve
+    - name: The name (first name, last name, or both) to search for
+    - service_token: Optional service API key for service-to-service authentication
+    
+    Returns:
+    - A single employee record if employee_id is provided or exact name match
+    - A list of employee records if multiple employees match the name criteria
+    - 404 if no employees are found
+    """
     logger.info(f"API search for employee - ID: {employee_id}, Name: {name}")
+    
+    # Check service token if provided
+    if service_token:
+        # TODO: Add validation for service token if desired
+        logger.info("Service token provided for API access")
     
     supabase = get_supabase()
     
     # If no parameters, return all employees (with a reasonable limit)
     if not employee_id and not name:
-        logger.info("No search criteria provided, returning all employees")
+        logger.info("No search criteria provided, returning limited list of employees")
         try:
             result = supabase.table("employees").select(
                 "id, first_name, last_name, job_title, department, email, phone, role, created_at"
@@ -238,7 +259,7 @@ async def get_employee_by_id_or_name(
             logger.error(f"Exception during employee search: {str(e)}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error searching employees: {str(e)}")
 
-    # Rest of your existing code for searching by ID or name...
+    # Build query for searching by ID or name
     query = supabase.table("employees").select(
         "id, first_name, last_name, job_title, department, email, phone, role, created_at"
     )
