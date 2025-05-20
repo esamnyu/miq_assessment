@@ -4,23 +4,15 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
 
-// Shadcn/ui components
-import { Button } from '@/components/ui/button'; // Path alias will be fixed by tsconfig
-import { Input } from '@/components/ui/input';   // Path alias will be fixed by tsconfig
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'; // Path alias
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"; // Path alias
-import { useToast } from "@/components/ui/use-toast"; // Path alias
-
 // Your custom imports
-import { loginSchema } from '../schemas/authSchemas'; // loginSchema is a value
-import type { LoginFormInputs } from '../schemas/authSchemas'; // Corrected: Type-only import
+import { loginSchema } from '../schemas/authSchemas';
+import type { LoginFormInputs } from '../schemas/authSchemas';
 import { loginUser } from '../services/authService';
 import { useAuth } from '../contexts/AuthContext';
 
 const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const { login: contextLogin } = useAuth();
-  const { toast } = useToast();
 
   const form = useForm<LoginFormInputs>({
     resolver: zodResolver(loginSchema),
@@ -34,10 +26,7 @@ const LoginPage: React.FC = () => {
     mutationFn: loginUser,
     onSuccess: (data) => {
       contextLogin(data.access_token);
-      toast({
-        title: "Login Successful!",
-        description: "Redirecting to your profile...",
-      });
+      alert("Login Successful! Redirecting to your profile...");
       navigate('/profile');
     },
     onError: (error: any) => {
@@ -48,11 +37,7 @@ const LoginPage: React.FC = () => {
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      toast({
-        variant: "destructive",
-        title: "Login Failed",
-        description: errorMessage,
-      });
+      alert(`Login Failed: ${errorMessage}`);
       console.error("Login error:", error);
     },
   });
@@ -62,68 +47,78 @@ const LoginPage: React.FC = () => {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-slate-100 dark:bg-slate-900 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="space-y-1 text-center">
-          <CardTitle className="text-2xl font-bold">Welcome Back!</CardTitle>
-          <CardDescription>
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 dark:bg-gray-900 p-4">
+      <div className="w-full max-w-md bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden">
+        <div className="p-6 space-y-1 text-center border-b border-gray-200 dark:border-gray-700">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Welcome Back!</h1>
+          <p className="text-gray-600 dark:text-gray-400">
             Enter your credentials to access your account.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="username"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Username</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="text"
-                        placeholder="your_username"
-                        disabled={loginMutation.isPending}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+          </p>
+        </div>
+        
+        <div className="p-6">
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Username
+              </label>
+              <input
+                type="text"
+                placeholder="your_username"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                          dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 
+                          focus:ring-blue-500 focus:border-transparent"
+                disabled={loginMutation.isPending}
+                {...form.register("username")}
               />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Password</FormLabel>
-                    <FormControl>
-                      <Input
-                        type="password"
-                        placeholder="••••••••"
-                        disabled={loginMutation.isPending}
-                        {...field}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
+              {form.formState.errors.username && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {form.formState.errors.username.message}
+                </p>
+              )}
+            </div>
+            
+            <div className="space-y-2">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+                Password
+              </label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md 
+                          dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-2 
+                          focus:ring-blue-500 focus:border-transparent"
+                disabled={loginMutation.isPending}
+                {...form.register("password")}
               />
-              <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
-                {loginMutation.isPending ? 'Logging in...' : 'Login'}
-              </Button>
-            </form>
-          </Form>
-        </CardContent>
-        <CardFooter className="flex flex-col items-center space-y-2">
-          <p className="text-sm text-muted-foreground">
+              {form.formState.errors.password && (
+                <p className="text-sm text-red-600 dark:text-red-400">
+                  {form.formState.errors.password.message}
+                </p>
+              )}
+            </div>
+            
+            <button
+              type="submit"
+              className="w-full py-2 px-4 bg-blue-600 hover:bg-blue-700 text-white rounded-md
+                      focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-opacity-50
+                      transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={loginMutation.isPending}
+            >
+              {loginMutation.isPending ? 'Logging in...' : 'Login'}
+            </button>
+          </form>
+        </div>
+        
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex flex-col items-center space-y-2">
+          <p className="text-sm text-gray-600 dark:text-gray-400">
             Don't have an account?{' '}
-            <Link to="/register" className="font-medium text-primary hover:underline">
+            <Link to="/register" className="font-medium text-blue-600 dark:text-blue-400 hover:underline">
               Register here
             </Link>
           </p>
-        </CardFooter>
-      </Card>
+        </div>
+      </div>
     </div>
   );
 };
