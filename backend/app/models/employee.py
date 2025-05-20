@@ -1,6 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import datetime
+from app.models.mcp import MCPContext, MCPRequest, MCPResponse
 
 # This represents the data structure when communicating with Supabase
 class EmployeeBase(BaseModel):
