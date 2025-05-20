@@ -106,18 +106,11 @@ async def create_employee(
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create employee, no data returned.")
         
         logger.info(f"Employee {employee.username} created successfully with ID {result.data[0].get('id')}")
-        # Ensure the returned data matches EmployeeResponse (e.g., fetch again if insert doesn't return all fields)
-        # For simplicity, assuming insert returns enough data or EmployeeResponse is flexible
         return result.data[0]
     except Exception as e:
         logger.error(f"Exception during employee creation: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating employee: {str(e)}")
 
-# For get_my_profile, ensure get_current_user expects a token passed directly
-# This might require a change in your auth.py:get_current_user
-# Original: async def get_current_user(token: str = Depends(oauth2_scheme)):
-# Change to: async def get_current_user(token: str):
-# Or create a new dependency that extracts token and calls get_current_user
 
 async def get_required_current_user(authorization: str = Header(...)) -> dict:
     """
@@ -133,13 +126,13 @@ async def get_required_current_user(authorization: str = Header(...)) -> dict:
         )
     token = authorization.replace("Bearer ", "")
     try:
-        user = await get_current_user(token=token) # Pass token directly
-        if not user: # Should not happen if get_current_user raises on failure
+        user = await get_current_user(token=token) 
+        if not user: 
              raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token or user not found")
         return user
-    except HTTPException as e: # Re-raise HTTPExceptions from get_current_user
+    except HTTPException as e: 
         raise e
-    except Exception as e: # Catch other potential errors
+    except Exception as e: 
         logger.error(f"Error in get_required_current_user: {e}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Authentication error")
 
@@ -147,13 +140,6 @@ async def get_required_current_user(authorization: str = Header(...)) -> dict:
 @router.get("/me", response_model=EmployeeResponse)
 async def get_my_profile(current_user: dict = Depends(get_required_current_user)):
     logger.info(f"Getting profile for {current_user.get('username')}")
-    # The current_user dict from get_required_current_user should already be in the correct format.
-    # If it's not (e.g., missing 'created_at'), you might need to fetch from DB:
-    # supabase = get_supabase()
-    # result = supabase.table("employees").select("*").eq("id", current_user["id"]).execute()
-    # if not result.data:
-    #     raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User profile not found")
-    # return result.data[0]
     return current_user
 
 
@@ -171,15 +157,12 @@ async def update_my_profile(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
 
     try:
-        # Perform the update
         update_result = supabase.table("employees").update(update_data).eq("id", current_user["id"]).execute()
         
         if hasattr(update_result, 'error') and update_result.error:
             logger.error(f"Supabase error during update: {update_result.error}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update profile: {update_result.error.message}")
 
-        # Fetch the updated record to return
-        # Ensure you select all fields required by EmployeeResponse
         select_fields = "id, username, email, first_name, last_name, job_title, department, phone, role, created_at"
         updated_record_result = supabase.table("employees").select(select_fields).eq("id", current_user["id"]).execute()
         
@@ -213,15 +196,12 @@ async def admin_update_employee_profile(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
 
     try:
-        # First perform the update operation
         update_result = supabase.table("employees").update(update_payload).eq("id", employee_id_to_update).execute()
         
         if hasattr(update_result, 'error') and update_result.error:
             logger.error(f"Supabase error during admin update: {update_result.error}")
             raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update employee: {update_result.error.message}")
         
-        # Check if any rows were affected (Supabase typically doesn't return count on update easily without RPC)
-        # So, we fetch the record to confirm existence and get updated data.
         select_fields = "id, username, email, first_name, last_name, job_title, department, phone, role, created_at"
         select_result = supabase.table("employees").select(select_fields).eq("id", employee_id_to_update).execute()
         
@@ -252,7 +232,6 @@ async def update_salary(
 
     supabase = get_supabase()
     try:
-        # Select all fields required by EmployeeConfidential
         select_fields = "id, username, email, first_name, last_name, job_title, department, phone, role, created_at, salary"
         result = supabase.table("employees").update({"salary": salary_payload}).eq("id", employee_id).select(select_fields).execute()
 
@@ -269,27 +248,19 @@ async def update_salary(
         logger.error(f"Exception during salary update: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating salary: {str(e)}")
 
-# --- Existing Microservice Endpoint (modified for consistency) ---
 EMPLOYEE_PUBLIC_FIELDS = "id, username, first_name, last_name, job_title, department, email, phone, role, created_at"
 
 @router.get("/api/employee", response_model=Union[EmployeeResponse, List[EmployeeResponse]], tags=["microservice"])
 async def get_employee_by_id_or_name(
     employee_id: Optional[str] = None,
     name: Optional[str] = None,
-    service_token: Optional[str] = Header(None, alias="X-Service-API-Key") # Renamed from X-Service-API-Key to service_token for consistency
+    service_token: Optional[str] = Header(None, alias="X-Service-API-Key") 
 ):
     logger.info(f"API search for employee - ID: {employee_id}, Name: {name}")
     
     if service_token:
-        # TODO: Add validation for service token. For now, just log its presence.
-        # Example: if service_token != "EXPECTED_SERVICE_KEY": raise HTTPException(status_code=401, detail="Invalid service token")
-        logger.info(f"Service token provided: {service_token[:10]}...") # Log a snippet for security
-    # else:
-        # Depending on policy, you might want to raise HTTPException if token is required for this endpoint
-        # logger.warning("No service token provided for /api/employee endpoint.")
-        # raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Service token required")
-
-
+        logger.info(f"Service token provided: {service_token[:10]}...") 
+    
     supabase = get_supabase()
     
     try:
@@ -299,8 +270,7 @@ async def get_employee_by_id_or_name(
             
             if not result.data:
                 logger.warning("No employees found in the system.")
-                # Return empty list instead of 404 if that's preferred for "list all" scenarios
-                return [] # Or raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No employees found")
+                return [] 
                 
             logger.info(f"Found {len(result.data)} employees (limited to 100).")
             return result.data
@@ -312,16 +282,15 @@ async def get_employee_by_id_or_name(
             query = query.eq("id", employee_id)
         elif name:
             parts = name.split()
-            if len(parts) > 1: # Search by first and last name parts
+            if len(parts) > 1: 
                 first_name_pattern = f"%{parts[0]}%"
-                last_name_pattern = f"%{' '.join(parts[1:])}%" # Handle multi-word last names
+                last_name_pattern = f"%{' '.join(parts[1:])}%" 
                 logger.info(f"Searching by first name pattern: '{first_name_pattern}' and last name pattern: '{last_name_pattern}'")
                 query = query.ilike("first_name", first_name_pattern).ilike("last_name", last_name_pattern)
-            else: # Search by a single name part in either first or last name
+            else: 
                 name_pattern = f"%{name}%"
                 logger.info(f"Searching by general name pattern: '{name_pattern}'")
                 query = query.or_(f"first_name.ilike.{name_pattern},last_name.ilike.{name_pattern},username.ilike.{name_pattern}")
-
 
         result = query.execute()
 
@@ -333,28 +302,24 @@ async def get_employee_by_id_or_name(
             logger.warning(f"No employees found matching criteria: ID '{employee_id}', Name '{name}'")
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
 
-        # If employee_id was specified, expect a single result or 404 (handled above)
         if employee_id:
              logger.info(f"Found employee by ID: {result.data[0].get('username')}")
              return result.data[0]
 
-        # If name was specified, it could return multiple or one.
-        # The response model Union[EmployeeResponse, List[EmployeeResponse]] handles this.
         logger.info(f"Found {len(result.data)} employee(s) matching name criteria for '{name}'")
         return result.data
 
-    except HTTPException: # Re-raise known HTTP exceptions
+    except HTTPException: 
         raise
     except Exception as e:
         logger.error(f"General exception during /api/employee search: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error searching employees: {str(e)}")
 
 
-# --- New MCP Endpoint ---
 @router.post("/api/mcp", response_model=MCPResponse, tags=["microservice"])
 async def employee_mcp(
     request: MCPRequest,
-    service_token: Optional[str] = Header(None, alias="X-Service-API-Key") # Consistent naming
+    service_token: Optional[str] = Header(None, alias="X-Service-API-Key") 
 ):
     """
     Model-Context-Protocol endpoint for employee data retrieval.
@@ -365,27 +330,16 @@ async def employee_mcp(
     - search_employees: Search employees by name. Params: {"name": "search_term", "limit": optional_int}
     - list_employees: List all employees. Params: {"limit": optional_int}
     """
-    # Initialize context if not provided by the caller, or enrich it
     if request.context:
         context = request.context
-        context.service = "employee-service" # Ensure service name is set
-        context.timestamp = datetime.utcnow() # Update timestamp to processing time
+        context.service = "employee-service" 
+        context.timestamp = datetime.utcnow() 
     else:
         context = MCPContext(service="employee-service")
 
     if service_token:
-        # TODO: Validate service_token properly
-        # For now, just marking caller if token is present
         context.caller = "authenticated-service"
         logger.info(f"MCP request from authenticated service (token found). Action: {request.action}")
-    # else:
-        # Depending on policy, might reject if no token
-        # logger.warning(f"MCP request without service token. Action: {request.action}")
-        # return MCPResponse(
-        #     status="error",
-        #     error={"code": "AUTH_REQUIRED", "message": "X-Service-API-Key header is required for MCP endpoint."},
-        #     context=context
-        # )
 
     supabase = get_supabase()
     
@@ -417,7 +371,7 @@ async def employee_mcp(
 
         elif action == "search_employees":
             name = params.get("name")
-            limit = params.get("limit", 20) # Default limit for search
+            limit = params.get("limit", 20) 
             if not name or not isinstance(name, str):
                 logger.warning(f"MCP 'search_employees': missing or invalid name: {name}")
                 return MCPResponse(
@@ -437,12 +391,11 @@ async def employee_mcp(
                 logger.error(f"MCP 'search_employees' Supabase error: {result.error}")
                 return MCPResponse(status="error", error={"code": "DB_ERROR", "message": result.error.message}, context=context)
             
-            # It's okay if search returns no results, it's not an error per se, just an empty list.
             logger.info(f"MCP 'search_employees': Found {len(result.data)} for name '{name}' (limit {limit})")
             return MCPResponse(status="success", data=result.data, context=context)
 
         elif action == "list_employees":
-            limit = params.get("limit", 100) # Default limit for list
+            limit = params.get("limit", 100) 
             result = supabase.table("employees").select(EMPLOYEE_PUBLIC_FIELDS).limit(limit).execute()
 
             if hasattr(result, 'error') and result.error:
@@ -468,7 +421,6 @@ async def employee_mcp(
             context=context
         )
 
-# --- New Health Check Endpoint ---
 @router.get("/api/health", tags=["microservice"])
 async def health_check():
     """Health check endpoint for the employee microservice."""
@@ -477,16 +429,7 @@ async def health_check():
     current_time = datetime.utcnow().isoformat()
     
     try:
-        # Simple health check query to ensure DB connectivity
-        # Using .select("id", count='exact').limit(1) is more efficient than fetching actual data
-        # However, Supabase Python client might not directly support count on a simple select without a filter.
-        # A more reliable simple check:
         result = supabase.table("employees").select("id").limit(1).execute() 
-
-        # The .execute() will raise an error if Supabase is unreachable or table doesn't exist.
-        # No need to check result.error here as PostgrestHTTPError would be raised.
-        # If it reaches here, basic connectivity is fine.
-
         return {
             "status": "healthy",
             "service": service_name,
@@ -505,4 +448,41 @@ async def health_check():
             "dependencies": {
                 "supabase": "unhealthy"
             }
+        }
+
+# --- New MCP Specific Health Check Endpoint ---
+@router.get("/api/mcp/health", tags=["microservice"])
+async def mcp_health_check():
+    """Health check endpoint for the MCP microservice aspects."""
+    supabase = get_supabase()
+    service_name = "employee-mcp-service" # Distinguish from general service health
+    current_time = datetime.utcnow().isoformat()
+    
+    try:
+        # Simple health check query to ensure DB connectivity, same as general health
+        # but contextually for MCP.
+        result = supabase.table("employees").select("id").limit(1).execute() 
+        # No need to check result.error, execute() would raise if there's an issue.
+
+        return {
+            "status": "healthy",
+            "service": service_name,
+            "timestamp": current_time,
+            "api_version": "1.0", # Specific to MCP API if versioned
+            "dependencies": {
+                "supabase": "healthy" # MCP also depends on Supabase
+            },
+            "notes": "Health check for Model-Context-Protocol specific functionalities."
+        }
+    except Exception as e:
+        logger.error(f"MCP Health check failed for {service_name}: {str(e)}")
+        return {
+            "status": "unhealthy",
+            "service": service_name,
+            "timestamp": current_time,
+            "error": f"Failed to connect to database or other MCP dependency: {str(e)}",
+            "dependencies": {
+                "supabase": "unhealthy"
+            },
+            "notes": "MCP service health check failed."
         }

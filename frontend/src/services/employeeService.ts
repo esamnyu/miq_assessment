@@ -29,6 +29,30 @@ export interface EmployeeConfidential extends EmployeeResponse {
   salary?: number | null;
 }
 
+// MCP interfaces
+export interface MCPContext {
+  service?: string;
+  timestamp?: string;
+  request_id?: string;
+  caller?: string;
+}
+
+export interface MCPRequest {
+  action: string;
+  parameters: Record<string, any>;
+  context?: MCPContext;
+}
+
+export interface MCPResponse {
+  status: string;
+  data?: any;
+  error?: {
+    code: string;
+    message: string;
+  };
+  context: MCPContext;
+}
+
 /**
  * Registers a new user.
  * @param userData - The registration form data.
@@ -304,4 +328,110 @@ export const updateEmployeeSalary = async (
     }
     throw error;
   }
+};
+
+/**
+ * Makes a request to the MCP endpoint for employee data.
+ * 
+ * @param action - The action to perform (get_employee, search_employees, list_employees)
+ * @param parameters - Parameters for the action
+ * @param token - Optional JWT token for authentication
+ * @returns A promise that resolves to the MCP response
+ */
+export const employeeMCPRequest = async (
+  action: string,
+  parameters: Record<string, any> = {},
+  token?: string
+): Promise<MCPResponse> => {
+  const requestBody: MCPRequest = {
+    action,
+    parameters,
+    context: {
+      service: 'frontend-client',
+      timestamp: new Date().toISOString()
+    }
+  };
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json'
+  };
+  
+  if (token) {
+    headers.Authorization = `Bearer ${token}`;
+  }
+  
+  try {
+    const response = await axios.post<MCPResponse>(
+      `${API_BASE_URL}/employees/api/mcp`,
+      requestBody,
+      { headers }
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Convenience function to get an employee by ID using the MCP endpoint.
+ */
+export const getEmployeeByIdMCP = async (
+  employeeId: string,
+  token?: string
+): Promise<EmployeeResponse> => {
+  const response = await employeeMCPRequest(
+    'get_employee',
+    { employee_id: employeeId },
+    token
+  );
+  
+  if (response.status === 'error') {
+    throw new Error(response.error?.message || 'Failed to get employee');
+  }
+  
+  return response.data as EmployeeResponse;
+};
+
+/**
+ * Convenience function to search employees by name using the MCP endpoint.
+ */
+export const searchEmployeesMCP = async (
+  name: string,
+  limit: number = 20,
+  token?: string
+): Promise<EmployeeResponse[]> => {
+  const response = await employeeMCPRequest(
+    'search_employees',
+    { name, limit },
+    token
+  );
+  
+  if (response.status === 'error') {
+    throw new Error(response.error?.message || 'Failed to search employees');
+  }
+  
+  return response.data as EmployeeResponse[];
+};
+
+/**
+ * Convenience function to list all employees using the MCP endpoint.
+ */
+export const listEmployeesMCP = async (
+  limit: number = 100,
+  token?: string
+): Promise<EmployeeResponse[]> => {
+  const response = await employeeMCPRequest(
+    'list_employees',
+    { limit },
+    token
+  );
+  
+  if (response.status === 'error') {
+    throw new Error(response.error?.message || 'Failed to list employees');
+  }
+  
+  return response.data as EmployeeResponse[];
 };
