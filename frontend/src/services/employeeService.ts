@@ -243,7 +243,6 @@ export const getEmployeeById = async (employeeId: string, token: string): Promis
  */
 export const getEmployeeConfidential = async (employeeId: string, token: string): Promise<EmployeeConfidential> => {
   try {
-    // You'll need to create this endpoint in your backend
     const response = await axios.get<EmployeeConfidential>(`${API_BASE_URL}/employees/${employeeId}/confidential`, {
       headers: {
         Authorization: `Bearer ${token}`,

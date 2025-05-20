@@ -232,18 +232,23 @@ async def update_salary(
 
     supabase = get_supabase()
     try:
+        # First perform the update
+        update_result = supabase.table("employees").update({"salary": salary_payload}).eq("id", employee_id).execute()
+        
+        if hasattr(update_result, 'error') and update_result.error:
+            logger.error(f"Supabase error during salary update: {update_result.error}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update salary: {update_result.error.message}")
+        
+        # Then fetch the updated record
         select_fields = "id, username, email, first_name, last_name, job_title, department, phone, role, created_at, salary"
-        result = supabase.table("employees").update({"salary": salary_payload}).eq("id", employee_id).select(select_fields).execute()
-
-        if hasattr(result, 'error') and result.error:
-            logger.error(f"Supabase error during salary update: {result.error}")
-            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update salary: {result.error.message}")
-        if not result.data:
-            logger.warning(f"Employee not found or salary update failed for ID: {employee_id}")
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found or salary update failed")
+        select_result = supabase.table("employees").select(select_fields).eq("id", employee_id).execute()
+        
+        if not select_result.data:
+            logger.warning(f"Employee not found after salary update for ID: {employee_id}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found after salary update")
 
         logger.info(f"Salary updated successfully for employee ID {employee_id}")
-        return result.data[0]
+        return select_result.data[0]
     except Exception as e:
         logger.error(f"Exception during salary update: {str(e)}")
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating salary: {str(e)}")
@@ -486,3 +491,43 @@ async def mcp_health_check():
             },
             "notes": "MCP service health check failed."
         }
+    
+@router.get("/{employee_id}/confidential", response_model=EmployeeConfidential, tags=["admin"])
+async def get_employee_confidential(
+    employee_id: str,
+    current_user: dict = Depends(get_required_current_user)
+):
+    """
+    Get employee confidential information including salary.
+    Only accessible by HR, managers, or the employee themselves.
+    """
+    logger.info(f"Fetching confidential info for employee ID {employee_id} by {current_user.get('username')}")
+    
+    # Check permissions: User must be HR, manager, or the employee themselves
+    is_authorized = (
+        current_user.get("role") in ["hr", "manager", "admin"] or 
+        current_user.get("id") == employee_id
+    )
+    
+    if not is_authorized:
+        logger.warning(f"Unauthorized attempt to access confidential info by {current_user.get('username')}")
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not authorized to access confidential employee information"
+        )
+    
+    supabase = get_supabase()
+    try:
+        # Include salary in the fields
+        select_fields = "id, username, email, first_name, last_name, job_title, department, phone, role, created_at, salary"
+        result = supabase.table("employees").select(select_fields).eq("id", employee_id).execute()
+        
+        if not result.data:
+            logger.warning(f"Employee not found for ID: {employee_id}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+            
+        logger.info(f"Confidential info retrieved successfully for {employee_id}")
+        return result.data[0]
+    except Exception as e:
+        logger.error(f"Exception during confidential info retrieval: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error retrieving confidential information: {str(e)}")
