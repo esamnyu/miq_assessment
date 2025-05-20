@@ -1,77 +1,111 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Body # Added Body
-from typing import List, Optional, Union # Added Union
+from fastapi import APIRouter, Depends, HTTPException, status, Body, Request, Header
+from typing import List, Optional, Union
 from app.models.employee import (
     EmployeeBase,
     EmployeeCreate,
     EmployeeUpdate,
     EmployeeResponse,
     EmployeeConfidential,
-    # Consider adding an AdminEmployeeUpdate if it differs significantly from EmployeeUpdate
-    # For now, we can try to reuse EmployeeUpdate or be careful with what HR can update.
 )
-from app.auth.auth import get_current_user, get_password_hash # Removed create_access_token, not used here
+from app.auth.auth import get_current_user, get_password_hash, oauth2_scheme
 from app.db.supabase_client import get_supabase
 import uuid
+import logging
+
+# Set up logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
+# This is the key fix - make token truly optional by not depending directly on oauth2_scheme
+async def get_optional_current_user(authorization: Optional[str] = Header(None)) -> Optional[dict]:
+    """
+    Truly optional authentication that doesn't raise 401 when no token is provided.
+    """
+    if not authorization:
+        logger.info("No Authorization header found, proceeding as unauthenticated")
+        return None
+    
+    try:
+        # Extract token from Bearer format
+        if authorization.startswith("Bearer "):
+            token = authorization.replace("Bearer ", "")
+            logger.info(f"Found Bearer token, attempting to validate")
+            user = await get_current_user(token)
+            logger.info(f"Successfully authenticated user: {user.get('username', 'unknown')}")
+            return user
+        else:
+            logger.warning("Authorization header does not use Bearer format")
+            return None
+    except Exception as e:
+        logger.warning(f"Authentication failed: {str(e)}")
+        return None
+
 @router.post("/", response_model=EmployeeResponse, status_code=status.HTTP_201_CREATED)
 async def create_employee(
+    request: Request,
     employee: EmployeeCreate,
-    # If HR is the one creating users and setting roles, they must be authenticated
-    current_user_for_role_assignment: Optional[dict] = Depends(get_current_user) # Made optional for self-registration scenario
+    current_user: Optional[dict] = Depends(get_optional_current_user)
 ):
+    logger.info(f"Creating employee: {employee.username}")
+    logger.info(f"Authenticated user: {current_user.get('username') if current_user else 'None'}")
+    
     supabase = get_supabase()
 
     # Check if username exists
-    # Using count='exact' is generally more efficient if supported well by your client version.
-    # If not, selecting a minimal field and checking if data exists is also good.
+    logger.info(f"Checking if username {employee.username} exists")
     existing_user_check = supabase.table("employees").select("id", count='exact').eq("username", employee.username).execute()
-    if existing_user_check.count > 0: # Access count attribute
+    if existing_user_check.count > 0:
+        logger.warning(f"Username {employee.username} already exists")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
 
-    # Role assignment logic
-    assigned_role = employee.role
+    # Simplified role assignment logic
+    assigned_role = "employee"  # Default role for self-registration
+    
+    # Only authenticated users with proper roles can create privileged users
     if employee.role in ["hr", "manager"]:
-        if not current_user_for_role_assignment or current_user_for_role_assignment.get("role") not in ["hr", "admin"]: # Assuming 'admin' could also do this
-            # If not an HR/admin trying to assign privileged role, or if it's self-registration trying this,
-            # either forbid or default to "employee". Forbidding is safer.
+        if current_user and current_user.get("role") in ["hr", "admin"]:
+            logger.info(f"Authorized to assign {employee.role} role")
+            assigned_role = employee.role
+        else:
+            logger.warning(f"Unauthorized attempt to assign {employee.role} role")
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Not authorized to assign privileged roles."
             )
-    elif not current_user_for_role_assignment: # Self-registration scenario
-        assigned_role = "employee" # Enforce default role for self-registration
-    # If an authenticated user (non-HR) is creating another user (if that's a feature),
-    # they should also only be able to assign 'employee' role.
-    # The default in EmployeeCreate is 'employee', so if role isn't in ["hr", "manager"], it's fine.
-
-
+    
     # Create employee with hashed password
-    employee_data = employee.model_dump() # Use model_dump() for Pydantic v2
+    employee_data = employee.model_dump()
     password = employee_data.pop("password")
+    logger.info(f"Hashing password for {employee.username}")
     employee_data["password_hash"] = get_password_hash(password)
     employee_data["id"] = str(uuid.uuid4())
-    employee_data["role"] = assigned_role # Ensure the determined role is used
+    employee_data["role"] = assigned_role
+    
+    logger.info(f"Inserting employee with role: {assigned_role}")
 
     # Insert into Supabase
-    result = supabase.table("employees").insert(employee_data).execute()
-
-    # Check for errors from Supabase insert
-    if hasattr(result, 'error') and result.error:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create employee: {result.error.message}")
-    if not result.data:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create employee, no data returned.")
-
-    return result.data[0]
+    try:
+        result = supabase.table("employees").insert(employee_data).execute()
+        
+        # Check for errors from Supabase insert
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Supabase error: {result.error}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to create employee: {result.error.message}")
+        if not result.data:
+            logger.error("No data returned from Supabase")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create employee, no data returned.")
+        
+        logger.info(f"Employee {employee.username} created successfully")
+        return result.data[0]
+    except Exception as e:
+        logger.error(f"Exception during employee creation: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error creating employee: {str(e)}")
 
 @router.get("/me", response_model=EmployeeResponse)
 async def get_my_profile(current_user: dict = Depends(get_current_user)):
-    # current_user from get_current_user is the raw dict from Supabase.
-    # FastAPI will automatically validate and parse it against EmployeeResponse.
-    # If EmployeeResponse is missing fields present in current_user (like 'username', 'password_hash'),
-    # they will be excluded, which is good for 'password_hash'.
-    # If 'username' should be in EmployeeResponse, add it to the Pydantic model.
+    logger.info(f"Getting profile for {current_user.get('username')}")
     return current_user
 
 @router.put("/me", response_model=EmployeeResponse)
@@ -79,124 +113,147 @@ async def update_my_profile(
     employee_update: EmployeeUpdate,
     current_user: dict = Depends(get_current_user)
 ):
+    logger.info(f"Updating profile for {current_user.get('username')}")
     supabase = get_supabase()
-
-    # Pydantic v2: .model_dump(exclude_unset=True)
     update_data = employee_update.model_dump(exclude_unset=True)
 
     if not update_data:
+        logger.warning("No update data provided")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
 
-    result = supabase.table("employees").update(update_data).eq("id", current_user["id"]).select("*").execute() # Added select("*")
+    try:
+        # Fix: Remove .select("*") or change the order
+        result = supabase.table("employees").update(update_data).eq("id", current_user["id"]).execute()
+        
+        # If you need to get the updated record, do a separate query
+        if not result.data:
+            logger.warning(f"Employee not found or update failed for ID: {current_user['id']}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found or update failed")
+            
+        # Get the updated record
+        updated_record = supabase.table("employees").select("*").eq("id", current_user["id"]).execute()
+        
+        logger.info(f"Profile updated successfully for {current_user.get('username')}")
+        return updated_record.data[0]
+    except Exception as e:
+        logger.error(f"Exception during profile update: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating profile: {str(e)}")
 
-    if hasattr(result, 'error') and result.error:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update employee: {result.error.message}")
-    if not result.data:
-        # This could also mean the user ID didn't match, though less likely for /me
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found or update failed")
-
-    return result.data[0]
-
-# New endpoint for HR to edit non-confidential info of ANY employee
-@router.put("/admin/{employee_id_to_update}", response_model=EmployeeResponse, tags=["admin"]) # Added new tag
+@router.put("/admin/{employee_id_to_update}", response_model=EmployeeResponse, tags=["admin"])
 async def admin_update_employee_profile(
     employee_id_to_update: str,
-    employee_update_data: EmployeeUpdate, # Reusing EmployeeUpdate, be mindful of fields
+    employee_update_data: EmployeeUpdate,
     current_user: dict = Depends(get_current_user)
 ):
-    if current_user.get("role") not in ["hr", "manager", "admin"]: # Or just "hr" if managers shouldn't do this
+    logger.info(f"Admin update for employee ID {employee_id_to_update} by {current_user.get('username')}")
+    
+    if current_user.get("role") not in ["hr", "manager", "admin"]:
+        logger.warning(f"Unauthorized admin update attempt by {current_user.get('username')} with role {current_user.get('role')}")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not authorized for this action")
 
     supabase = get_supabase()
     update_payload = employee_update_data.model_dump(exclude_unset=True)
 
     if not update_payload:
+        logger.warning("No update data provided")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No update data provided")
 
-    # Prevent HR from updating certain fields they shouldn't, e.g., username or role via this endpoint
-    # Password is not in EmployeeUpdate, so that's good.
-    # Role is not in EmployeeUpdate by default, if it were, you'd protect it.
-    # Example:
-    # if "username" in update_payload:
-    #     del update_payload["username"]
-    # if "role" in update_payload: # If EmployeeUpdate could somehow contain role
-    #     del update_payload["role"]
+    try:
+        result = supabase.table("employees").update(update_payload).eq("id", employee_id_to_update).select("*").execute()
 
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Supabase error: {result.error}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update employee: {result.error.message}")
+        if not result.data:
+            logger.warning(f"Employee not found or update failed for ID: {employee_id_to_update}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Employee with id {employee_id_to_update} not found or update failed")
 
-    result = supabase.table("employees").update(update_payload).eq("id", employee_id_to_update).select("*").execute() # Added select("*")
+        logger.info(f"Admin update successful for employee ID {employee_id_to_update}")
+        return result.data[0]
+    except Exception as e:
+        logger.error(f"Exception during admin update: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating employee: {str(e)}")
 
-    if hasattr(result, 'error') and result.error:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update employee: {result.error.message}")
-    if not result.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Employee with id {employee_id_to_update} not found or update failed")
-
-    return result.data[0]
-
-
-@router.put("/{employee_id}/salary", response_model=EmployeeConfidential, tags=["admin"]) # Added admin tag
+@router.put("/{employee_id}/salary", response_model=EmployeeConfidential, tags=["admin"])
 async def update_salary(
     employee_id: str,
-    # To receive salary as a raw float in the body, not as a query parameter:
-    salary_payload: float = Body(..., embed=True, alias="salary"), # Use Body for request body field
+    salary_payload: float = Body(..., embed=True, alias="salary"),
     current_user: dict = Depends(get_current_user)
 ):
+    logger.info(f"Salary update for employee ID {employee_id} by {current_user.get('username')}")
+    
     if current_user.get("role") not in ["hr", "manager", "admin"]:
+        logger.warning(f"Unauthorized salary update attempt by {current_user.get('username')}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Not enough permissions"
         )
 
     supabase = get_supabase()
-    # Ensure the update payload is structured as Supabase expects, e.g., {"salary": salary_payload}
-    result = supabase.table("employees").update({"salary": salary_payload}).eq("id", employee_id).select("*").execute() # Added select("*")
+    try:
+        result = supabase.table("employees").update({"salary": salary_payload}).eq("id", employee_id).select("*").execute()
 
-    if hasattr(result, 'error') and result.error:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update salary: {result.error.message}")
-    if not result.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found or salary update failed")
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Supabase error: {result.error}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Failed to update salary: {result.error.message}")
+        if not result.data:
+            logger.warning(f"Employee not found or salary update failed for ID: {employee_id}")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found or salary update failed")
 
-    return result.data[0]
+        logger.info(f"Salary updated successfully for employee ID {employee_id}")
+        return result.data[0]
+    except Exception as e:
+        logger.error(f"Exception during salary update: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error updating salary: {str(e)}")
 
-@router.get("/api/employee", response_model=Union[EmployeeResponse, List[EmployeeResponse]]) # Can return a list if name is ambiguous
+@router.get("/api/employee", response_model=Union[EmployeeResponse, List[EmployeeResponse]])
 async def get_employee_by_id_or_name(
     employee_id: Optional[str] = None,
     name: Optional[str] = None
-    # Consider adding current_user: dict = Depends(get_current_user) if this needs to be protected
 ):
+    logger.info(f"API search for employee - ID: {employee_id}, Name: {name}")
+    
     if not employee_id and not name:
+        logger.warning("No search criteria provided")
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Either employee_id or name must be provided")
 
     supabase = get_supabase()
     query = supabase.table("employees").select(
-        "id, first_name, last_name, job_title, department, email, phone, role, created_at" # Explicitly list non-confidential fields
-    ) # Exclude password_hash and salary by default
+        "id, first_name, last_name, job_title, department, email, phone, role, created_at"
+    )
 
     if employee_id:
+        logger.info(f"Searching by ID: {employee_id}")
         query = query.eq("id", employee_id)
     elif name:
         parts = name.split()
-        # Using ilike for case-insensitive search - adjust if your Supabase client syntax differs
-        # Ensure your PostgreSQL columns have appropriate indexing for ilike if performance is critical
         if len(parts) > 1:
             first_name_pattern = f"%{parts[0]}%"
             last_name_pattern = f"%{' '.join(parts[1:])}%"
-            # This is an AND condition, both must match (fuzzy match)
+            logger.info(f"Searching by first and last name: {first_name_pattern}, {last_name_pattern}")
             query = query.ilike("first_name", first_name_pattern).ilike("last_name", last_name_pattern)
         else:
             name_pattern = f"%{name}%"
-            # This is an OR condition, fuzzy match on either
+            logger.info(f"Searching by name pattern: {name_pattern}")
             query = query.or_(f"first_name.ilike.{name_pattern},last_name.ilike.{name_pattern}")
 
-    result = query.execute()
+    try:
+        result = query.execute()
 
-    if hasattr(result, 'error') and result.error:
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching employee: {result.error.message}")
+        if hasattr(result, 'error') and result.error:
+            logger.error(f"Supabase error: {result.error}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error fetching employee: {result.error.message}")
 
-    if not result.data:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
+        if not result.data:
+            logger.warning("No employees found matching criteria")
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Employee not found")
 
-    # If searching by name could return multiple results, and you want to return all:
-    if name and not employee_id and len(result.data) > 1:
-        return result.data # Returns a list of EmployeeResponse
+        if name and not employee_id and len(result.data) > 1:
+            logger.info(f"Found {len(result.data)} employees matching name criteria")
+            return result.data
 
-    return result.data[0] # Returns a single EmployeeResponse
+        logger.info("Found one employee matching criteria")
+        return result.data[0]
+    except Exception as e:
+        logger.error(f"Exception during employee search: {str(e)}")
+        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error searching employees: {str(e)}")

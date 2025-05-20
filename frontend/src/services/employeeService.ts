@@ -24,6 +24,11 @@ export interface EmployeeResponse {
   // salary is confidential and should not be in this general response
 }
 
+// Interface for confidential employee data including salary
+export interface EmployeeConfidential extends EmployeeResponse {
+  salary?: number | null;
+}
+
 /**
  * Registers a new user.
  * @param userData - The registration form data.
@@ -139,6 +144,147 @@ export const getEmployeeByIdOrName = async (
     const response = await axios.get<EmployeeResponse | EmployeeResponse[]>(
       `${API_BASE_URL}/api/employee?${queryParams.toString()}`,
       { headers }
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+/** 
+ * HR ADMIN FUNCTIONS
+ * The following functions are for HR/Admin use only and require appropriate permissions
+ */
+
+/**
+ * Get all employees (for HR dashboard)
+ * @param token - The JWT token for authorization
+ * @returns A promise that resolves to an array of employee data
+ */
+export const getAllEmployees = async (token: string): Promise<EmployeeResponse[]> => {
+  try {
+    // You'll need to create this endpoint in your backend
+    // This could be a modification of your existing API endpoint with a parameter to get all employees
+    const response = await axios.get<EmployeeResponse[]>(`${API_BASE_URL}/api/employee/all`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Get a single employee by ID for HR/Admin view
+ * @param employeeId - The ID of the employee to retrieve
+ * @param token - The JWT token for authorization
+ * @returns A promise that resolves to the employee's data
+ */
+export const getEmployeeById = async (employeeId: string, token: string): Promise<EmployeeResponse> => {
+  try {
+    // You may need to create this endpoint, or you can use the existing getEmployeeByIdOrName function
+    return await getEmployeeByIdOrName({ employeeId }, token) as EmployeeResponse;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Get employee with confidential data (includes salary)
+ * @param employeeId - The ID of the employee to retrieve confidential info for
+ * @param token - The JWT token for authorization
+ * @returns A promise that resolves to the employee's confidential data
+ */
+export const getEmployeeConfidential = async (employeeId: string, token: string): Promise<EmployeeConfidential> => {
+  try {
+    // You'll need to create this endpoint in your backend
+    const response = await axios.get<EmployeeConfidential>(`${API_BASE_URL}/employees/${employeeId}/confidential`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Update employee as admin/HR (non-confidential info)
+ * @param employeeId - The ID of the employee to update
+ * @param data - The profile data to update
+ * @param token - The JWT token for authorization
+ * @returns A promise that resolves to the updated employee's data
+ */
+export const updateEmployeeAsAdmin = async (
+  employeeId: string, 
+  data: UpdateProfileFormInputs, 
+  token: string
+): Promise<EmployeeResponse> => {
+  try {
+    // Map frontend field names to backend field names
+    const payload = {
+      first_name: data.firstName,
+      last_name: data.lastName,
+      job_title: data.jobTitle,
+      department: data.department,
+      email: data.email,
+      phone: data.phone || null,
+    };
+    
+    const response = await axios.put<EmployeeResponse>(
+      `${API_BASE_URL}/employees/admin/${employeeId}`, 
+      payload,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    if (axios.isAxiosError(error) && error.response) {
+      throw error.response;
+    }
+    throw error;
+  }
+};
+
+/**
+ * Update employee salary (confidential info)
+ * @param employeeId - The ID of the employee to update salary for
+ * @param salary - The new salary amount
+ * @param token - The JWT token for authorization
+ * @returns A promise that resolves to the updated employee's confidential data
+ */
+export const updateEmployeeSalary = async (
+  employeeId: string, 
+  salary: number, 
+  token: string
+): Promise<EmployeeConfidential> => {
+  try {
+    const response = await axios.put<EmployeeConfidential>(
+      `${API_BASE_URL}/employees/${employeeId}/salary`, 
+      { salary }, // This matches the expected format in your API
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
     );
     return response.data;
   } catch (error) {

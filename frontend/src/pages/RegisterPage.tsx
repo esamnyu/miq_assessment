@@ -3,14 +3,18 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useMutation } from '@tanstack/react-query';
 import { useNavigate, Link } from 'react-router-dom';
+import { toast } from 'sonner'; // Optional: For better notifications
 
 // Your custom imports
 import { registerSchema } from '../schemas/employeeSchemas';
 import type { RegisterFormInputs } from '../schemas/employeeSchemas';
 import { registerUser } from '../services/employeeService';
+import { loginUser } from '../services/authService'; // Import login service
+import { useAuth } from '../contexts/AuthContext'; // Import auth context
 
 const RegisterPage: React.FC = () => {
   const navigate = useNavigate();
+  const { login } = useAuth(); // Get login function from auth context
 
   const form = useForm<RegisterFormInputs>({
     resolver: zodResolver(registerSchema),
@@ -29,9 +33,27 @@ const RegisterPage: React.FC = () => {
 
   const registrationMutation = useMutation({
     mutationFn: registerUser,
-    onSuccess: (data) => {
-      alert(`Registration Successful! Welcome, ${data.first_name}! Please log in.`);
-      navigate('/login');
+    onSuccess: async (data, variables) => {
+      // Try to automatically log in the user after registration
+      try {
+        const loginResponse = await loginUser({
+          username: variables.username,
+          password: variables.password
+        });
+        
+        // Update authentication context with the token
+        login(loginResponse.access_token);
+        
+        // Show success message and redirect to profile
+        toast.success(`Welcome, ${data.first_name}! Your account has been created.`);
+        // Short delay to allow the toast to be seen
+        setTimeout(() => navigate('/profile'), 500);
+      } catch (error) {
+        console.error("Auto-login failed:", error);
+        // If auto-login fails, still redirect to login page
+        alert(`Registration Successful! Welcome, ${data.first_name}! Please log in.`);
+        navigate('/login');
+      }
     },
     onError: (error: any) => {
       let errorMessage = "An unexpected error occurred during registration.";
@@ -44,7 +66,7 @@ const RegisterPage: React.FC = () => {
       } else if (error instanceof Error) {
         errorMessage = error.message;
       }
-      alert(`Registration Failed: ${errorMessage}`);
+      toast.error(`Registration Failed: ${errorMessage}`);
       console.error("Registration error:", error);
     },
   });
