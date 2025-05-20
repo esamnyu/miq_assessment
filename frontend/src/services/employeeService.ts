@@ -142,7 +142,7 @@ export const getEmployeeByIdOrName = async (
   
   try {
     const response = await axios.get<EmployeeResponse | EmployeeResponse[]>(
-      `${API_BASE_URL}/api/employee?${queryParams.toString()}`,
+      `${API_BASE_URL}/employees/api/employee?${queryParams.toString()}`,
       { headers }
     );
     return response.data;
@@ -166,16 +166,34 @@ export const getEmployeeByIdOrName = async (
  */
 export const getAllEmployees = async (token: string): Promise<EmployeeResponse[]> => {
   try {
-    // You'll need to create this endpoint in your backend
-    // This could be a modification of your existing API endpoint with a parameter to get all employees
-    const response = await axios.get<EmployeeResponse[]>(`${API_BASE_URL}/api/employee/all`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
-    return response.data;
+    // Updated: Use the existing employee API endpoint without specific search criteria
+    // to get all employees. This assumes your backend returns all employees when no
+    // specific search parameters are provided.
+    const response = await axios.get<EmployeeResponse | EmployeeResponse[]>(
+      `${API_BASE_URL}/employees/api/employee`,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    
+    // Handle the case where the API might return a single employee or an array
+    let employees: EmployeeResponse[];
+    if (Array.isArray(response.data)) {
+      employees = response.data;
+    } else {
+      employees = [response.data];
+    }
+    
+    return employees;
   } catch (error) {
+    console.error("Failed to fetch employees:", error);
     if (axios.isAxiosError(error) && error.response) {
+      // If API returns 404 or error, return empty array to avoid breaking the UI
+      if (error.response.status === 404) {
+        return [];
+      }
       throw error.response;
     }
     throw error;

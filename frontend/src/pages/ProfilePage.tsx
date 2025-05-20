@@ -124,15 +124,36 @@ const ProfilePage: React.FC = () => {
           </div>
         </div>
         
-        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex flex-col sm:flex-row justify-between items-center gap-2">
-          <Link to="/profile/edit">
-            <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded w-full sm:w-auto">
-              Edit Profile
-            </button>
-          </Link>
+        {/* Special notice for HR users */}
+        {profile.role === 'hr' && (
+          <div className="mx-6 mb-4 p-3 bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-200 dark:border-indigo-800 rounded-lg">
+            <p className="text-indigo-700 dark:text-indigo-300 font-medium">
+              You have HR administrator access. You can manage employees and update their information.
+            </p>
+          </div>
+        )}
+        
+        <div className="p-6 border-t border-gray-200 dark:border-gray-700 flex flex-wrap sm:flex-row justify-between items-center gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Link to="/profile/edit">
+              <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded">
+                Edit Profile
+              </button>
+            </Link>
+            
+            {/* HR Dashboard Button - Only visible for HR users */}
+            {profile.role === 'hr' && (
+              <Link to="/hr/dashboard">
+                <button className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded">
+                  HR Dashboard
+                </button>
+              </Link>
+            )}
+          </div>
+          
           <button 
             onClick={handleLogout} 
-            className="border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded w-full sm:w-auto mt-2 sm:mt-0"
+            className="border border-gray-300 hover:bg-gray-50 dark:border-gray-600 dark:hover:bg-gray-800 text-gray-700 dark:text-gray-300 px-4 py-2 rounded mt-2 sm:mt-0"
           >
             Logout
           </button>
