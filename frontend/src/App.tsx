@@ -1,4 +1,4 @@
-// Updated App.tsx with proper types
+// Updated App.tsx with proper types and MCP Demo route
 import { BrowserRouter, Routes, Route, Navigate, Outlet } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 // Import your AuthProvider
@@ -13,6 +13,8 @@ import NotFoundPage from './pages/NotFoundPage';
 import HRDashboardPage from './pages/HRDashboardPage';
 import HREmployeeEditPage from './pages/HREmployeeEditPage';
 import HRSalaryManagePage from './pages/HRSalaryManagePage';
+// Import the MCP Demo page
+import MCPDemoPage from './pages/MCPDemoPage';
 // Import your route protection components
 import ProtectedRoute from './components/auth/ProtectedRoute';
 import HRProtectedRoute from './components/auth/HRProtectedRoute';
@@ -62,6 +64,7 @@ function App() {
                 {/* User routes */}
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/profile/edit" element={<EditProfilePage />} />
+                <Route path="/mcp-demo" element={<MCPDemoPage />} />
                 
                 {/* HR-only routes */}
                 <Route element={<HRProtectedRoute />}>
