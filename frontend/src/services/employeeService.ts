@@ -166,10 +166,8 @@ export const getEmployeeByIdOrName = async (
  */
 export const getAllEmployees = async (token: string): Promise<EmployeeResponse[]> => {
   try {
-    // Use a wildcard search that will match most/all employees
-    // The empty string for name parameter should match employees with any name
-    const response = await axios.get<EmployeeResponse | EmployeeResponse[]>(
-      `${API_BASE_URL}/employees/api/employee?name=%`,
+    const response = await axios.get<EmployeeResponse[]>(
+      `${API_BASE_URL}/employees/api/employee`,  // No parameters
       {
         headers: {
           Authorization: `Bearer ${token}`,
@@ -177,7 +175,6 @@ export const getAllEmployees = async (token: string): Promise<EmployeeResponse[]
       }
     );
     
-    // Handle the case where the API might return a single employee or an array
     let employees: EmployeeResponse[];
     if (Array.isArray(response.data)) {
       employees = response.data;
@@ -189,12 +186,8 @@ export const getAllEmployees = async (token: string): Promise<EmployeeResponse[]
     return employees;
   } catch (error) {
     console.error("Failed to fetch employees:", error);
-    if (axios.isAxiosError(error) && error.response) {
-      // If API returns 404 or error, return empty array to avoid breaking the UI
-      if (error.response.status === 404) {
-        return [];
-      }
-      throw error.response;
+    if (axios.isAxiosError(error) && error.response?.status === 404) {
+      return [];
     }
     throw error;
   }

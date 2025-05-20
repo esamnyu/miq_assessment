@@ -218,11 +218,27 @@ async def get_employee_by_id_or_name(
 ):
     logger.info(f"API search for employee - ID: {employee_id}, Name: {name}")
     
-    if not employee_id and not name:
-        logger.warning("No search criteria provided")
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Either employee_id or name must be provided")
-
     supabase = get_supabase()
+    
+    # If no parameters, return all employees (with a reasonable limit)
+    if not employee_id and not name:
+        logger.info("No search criteria provided, returning all employees")
+        try:
+            result = supabase.table("employees").select(
+                "id, first_name, last_name, job_title, department, email, phone, role, created_at"
+            ).limit(100).execute()  # Add a reasonable limit
+            
+            if not result.data:
+                logger.warning("No employees found")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="No employees found")
+                
+            logger.info(f"Found {len(result.data)} employees")
+            return result.data
+        except Exception as e:
+            logger.error(f"Exception during employee search: {str(e)}")
+            raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail=f"Error searching employees: {str(e)}")
+
+    # Rest of your existing code for searching by ID or name...
     query = supabase.table("employees").select(
         "id, first_name, last_name, job_title, department, email, phone, role, created_at"
     )
