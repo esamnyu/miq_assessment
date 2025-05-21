@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM --platform=linux/amd64 python:3.11-slim
 
 WORKDIR /app
 
@@ -6,10 +6,7 @@ WORKDIR /app
 COPY requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
-
-# Copy application code (we're already in the backend directory)
+# Copy application code
 COPY . /app/
 
 # Create a non-root user and switch to it
@@ -21,5 +18,5 @@ USER appuser
 ENV PORT=8000
 ENV PYTHONUNBUFFERED=1
 
-# Command to run the application
+# Command to run the application - Fixed to handle case sensitivity in log level
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

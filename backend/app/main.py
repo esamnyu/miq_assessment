@@ -33,10 +33,34 @@ try:
     app = FastAPI(title="Employee Onboarding API", version="0.1.0")
     logger.info("FastAPI application initialized")
 
+    # Frontend URLs - only allow specific frontend domains
+    allowed_frontend_origins = [
+        "http://localhost:5173",                       # Local development
+        "https://miq-assessment.vercel.app",           # Your Vercel frontend
+        # Add your Amplify domain when you know it, e.g.:
+        # "https://main.d123456abcdef.amplifyapp.com"
+    ]
+
+    # Parse additional origins from environment variable if provided
+    if os.getenv("ALLOWED_ORIGINS"):
+        additional_origins = os.getenv("ALLOWED_ORIGINS").split(",")
+        allowed_frontend_origins.extend(additional_origins)
+
+    # For AWS deployment, add your Amplify domain if set through env vars
+    amplify_domain = os.getenv("AMPLIFY_DOMAIN")
+    if amplify_domain and amplify_domain not in allowed_frontend_origins:
+        allowed_frontend_origins.append(amplify_domain)
+
+    # Filter out any empty strings
+    allowed_frontend_origins = [origin for origin in allowed_frontend_origins if origin]
+
+    # Log the allowed origins (for debugging)
+    logger.info(f"CORS allowed origins: {allowed_frontend_origins}")
+
     # Configure CORS
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["*"],
+        allow_origins=allowed_frontend_origins,  # Only specific frontend domains
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
@@ -87,7 +111,9 @@ try:
         return {
             "status": "healthy",
             "environment": env_status,
-            "supabase": supabase_status
+            "supabase": supabase_status,
+            "version": "1.0.1",  # Added version for tracking deployments
+            "deployment": os.getenv("DEPLOYMENT_ENVIRONMENT", "unknown")
         }
 
     logger.info("Application startup complete and ready to handle requests")
