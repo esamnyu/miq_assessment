@@ -2,12 +2,12 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Copy requirements first (for better layer caching)
-COPY ./requirements.txt /app/
+# Copy requirements first, using the correct path
+COPY ./backend/requirements.txt /app/
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code
-COPY . /app/
+COPY ./backend /app/
 
 # Create a non-root user and switch to it
 RUN adduser --disabled-password --gecos "" appuser
