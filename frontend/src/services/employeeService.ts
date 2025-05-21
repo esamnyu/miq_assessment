@@ -6,7 +6,7 @@ import type { UpdateProfileFormInputs } from '../schemas/employeeSchemas';
 // Define your API base URL - ideally from an environment variable
 // For Vite, environment variables prefixed with VITE_ are exposed to the client-side code.
 // Make sure you have a .env file in your frontend directory with VITE_API_BASE_URL=http://localhost:8000 (or your actual backend URL)
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend-eight-ivory-36.vercel.app';
 
 // Interface for the expected successful response from POST /employees/
 // This should match your backend's EmployeeResponse Pydantic model

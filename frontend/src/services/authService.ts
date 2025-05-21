@@ -5,7 +5,7 @@ import type { LoginFormInputs } from '../schemas/authSchemas';
 
 // Ensure your .env file in the frontend directory has VITE_API_BASE_URL defined
 // Example: VITE_API_BASE_URL=http://localhost:8000
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000';
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://backend-eight-ivory-36.vercel.app';
 
 /**
  * Interface for the expected successful response from the /token endpoint.

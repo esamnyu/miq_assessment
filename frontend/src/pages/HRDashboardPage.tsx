@@ -31,13 +31,32 @@ const HRDashboardPage: React.FC = () => {
 
   return (
     <div className="container mx-auto p-4 md:p-8">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Employee Management</h1>
-        <Link to="/profile">
-          <button className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded">
-            Back to Profile
-          </button>
-        </Link>
+      <div className="mb-6">
+        <div className="flex justify-between items-center">
+          <h1 className="text-2xl font-bold">Employee Management</h1>
+          <div className="flex space-x-3">
+            <Link to="/mcp-demo">
+              <button className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded flex items-center">
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                </svg>
+                MCP Demo
+              </button>
+            </Link>
+            <Link to="/profile">
+              <button className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded">
+                Back to Profile
+              </button>
+            </Link>
+          </div>
+        </div>
+        
+        {/* Info banner about MCP Demo */}
+        <div className="mt-3 bg-blue-50 border border-blue-200 p-3 rounded-md">
+          <p className="text-sm text-blue-800">
+            <span className="font-medium">Pro Tip:</span> Check out the MCP Demo to see how our Model-Context-Protocol enables AI agents and services to access employee data.
+          </p>
+        </div>
       </div>
       
       {hasError && (

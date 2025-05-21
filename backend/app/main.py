@@ -1,59 +1,97 @@
+import logging
+import sys
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-import os
 from dotenv import load_dotenv
 
-# Import your routers
-# These lines import the router objects from your other files in the app.routers package.
-# Make sure you have:
-# - app/routers/employees.py (with a 'router' instance)
-# - app/routers/auth.py (with a 'router' instance)
-# - app/routers/supabase_test.py (with a 'router' instance, aliased here as supabase_test_router)
-from app.routers import employees, auth, supabase_test as supabase_test_router
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[logging.StreamHandler(sys.stdout)]
+)
+logger = logging.getLogger("app")
+
+# Log startup information
+logger.info("Starting application...")
 
 # Load environment variables from a .env file if it exists
 load_dotenv()
+logger.info("Environment variables loaded from .env file (if exists)")
 
-# Initialize the FastAPI application
-# The title and version will appear in your API documentation.
-app = FastAPI(title="Employee Onboarding API", version="0.1.0")
+# Log critical environment variables (without revealing sensitive values)
+for env_var in ["SUPABASE_URL", "SUPABASE_KEY", "JWT_SECRET", "PORT", "ALLOWED_ORIGINS"]:
+    logger.info(f"Environment variable {env_var}: {'SET' if os.getenv(env_var) else 'NOT SET'}")
 
-# Configure CORS (Cross-Origin Resource Sharing)
-# This middleware allows your frontend (running on a different port/domain)
-# to make requests to this backend API.
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],  # Allows all origins. For production, restrict this to your frontend's domain.
-    allow_credentials=True, # Allows cookies to be included in cross-origin requests.
-    allow_methods=["*"],  # Allows all HTTP methods (GET, POST, PUT, DELETE, etc.).
-    allow_headers=["*"],  # Allows all headers.
-)
+try:
+    # Import your routers
+    from app.routers import employees, auth, supabase_test as supabase_test_router
+    logger.info("Routers imported successfully")
 
-# Include your routers into the main application
-# This makes all the endpoints defined in those router files accessible.
-app.include_router(employees.router)
-app.include_router(auth.router)
-app.include_router(supabase_test_router.router) # This includes the /supabase/test endpoint
+    # Initialize the FastAPI application
+    app = FastAPI(title="Employee Onboarding API", version="0.1.0")
+    logger.info("FastAPI application initialized")
 
-# Root endpoint
-@app.get("/", tags=["default"])
-async def root():
-    """
-    Root endpoint for the Employee Onboarding API.
-    Provides a welcome message indicating the API is running.
-    """
-    return {"message": "Employee Onboarding API is running"}
+    # Configure CORS
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["*"],
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    logger.info("CORS middleware configured")
 
-# Health check endpoint
-@app.get("/health", tags=["default"])
-async def health_check():
-    """
-    Health check endpoint.
-    Returns a status of 'healthy' if the API is operational.
-    Used by monitoring services to check application health.
-    """
-    return {"status": "healthy"}
+    # Include your routers into the main application
+    app.include_router(employees.router)
+    app.include_router(auth.router)
+    app.include_router(supabase_test_router.router)
+    logger.info("Routers included in application")
 
-# Note: The original /supabase/test endpoint that might have been defined directly in main.py
-# is now expected to be in app/routers/supabase_test.py and included via its router.
-# This promotes better organization by keeping route definitions in their respective router files.
+    # Root endpoint
+    @app.get("/", tags=["default"])
+    async def root():
+        """
+        Root endpoint for the Employee Onboarding API.
+        Provides a welcome message indicating the API is running.
+        """
+        return {"message": "Employee Onboarding API is running"}
+
+    # Health check endpoint with Supabase connection test
+    @app.get("/health", tags=["default"])
+    async def health_check():
+        """
+        Health check endpoint.
+        Returns a status of 'healthy' if the API is operational.
+        Used by monitoring services to check application health.
+        """
+        logger.info("Health check endpoint called")
+        
+        # Test environment variables
+        env_status = {
+            var: "SET" if os.getenv(var) else "MISSING" 
+            for var in ["SUPABASE_URL", "SUPABASE_KEY", "JWT_SECRET"]
+        }
+        
+        # Basic Supabase connectivity check
+        try:
+            from app.db.supabase_client import get_supabase
+            supabase = get_supabase()
+            # Just test that we can get a connection, don't query anything
+            supabase_status = "connected"
+        except Exception as e:
+            logger.error(f"Supabase connection error: {str(e)}")
+            supabase_status = f"error: {str(e)}"
+            
+        return {
+            "status": "healthy",
+            "environment": env_status,
+            "supabase": supabase_status
+        }
+
+    logger.info("Application startup complete and ready to handle requests")
+
+except Exception as e:
+    logger.error(f"Application startup failed: {str(e)}", exc_info=True)
+    raise
